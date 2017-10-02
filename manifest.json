@@ -1,19 +1,15 @@
 {
   "manifest_version": 2,
-  "name": "Fiscal Printer on the Cloud",
-  "short_name": "FPoC",
-  "version": "0.1.6",
+  "name": "JS Fiscal Printer",
+  "short_name": "JSFiscalPrinter",
+  "version": "1.0",
   "default_locale": "es",
-  "description": "FPoC publica tu Impresora Fiscal en servidores de la nueve (SaaS), sin necesidad de drivers o software extra.",
+  "description": "JSFiscalPrinter permite imprimir tickets con tu impresora fiscal sin necesidad de drivers o software adicional.",
   "icons": { "16": "img/icon-16px.png", "128": "img/icon-128px.png" },
-  "author": "Cristian S. Rocha",
+  "author": "Maximiliano Nusspaumer Long",
   "app": {
 	  "background": {
 		  "scripts": [
-			  "test/test_001.js",
-			  "test/test_002.js",
-			  "test/test_003.js",
-			  "test/test_004.js",
 			  "src/cevents.js",
 			  "src/async.js",
 			  "src/serial.js",
@@ -33,6 +29,7 @@
   "externally_connectable": {
      "matches": [
          "*://localhost:*/*",
+         "*://127.0.0.1:*/*",
          "*://serverhost:*/*"
      ]
   },

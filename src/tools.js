@@ -85,7 +85,7 @@ var query_local_printers = function(callback, onchange) {
         // Remove disconnected printers.
         async.eachSeries(takeKeys(local_printers),
                 function(pid, __callback__) {
-                    local_printers[pid].get_status(function(result) {
+                    /*local_printers[pid].get_status(function(result) {
                         if (typeof result == 'undefined' || ('error' in result  && result.error == 'disconnected')) {
                             // Remove printer spool.
                             if (session) { session.del_printer(local_printers[pid]); }
@@ -96,7 +96,7 @@ var query_local_printers = function(callback, onchange) {
                             change=true;
                         };
                         __callback__();
-                    });
+                    });*/
                 },
                 function() {
                     callback();

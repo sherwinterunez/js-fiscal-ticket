@@ -21,7 +21,7 @@ var epson_e_ar = function(interface, sequence) {
 
     this.station = {
         'rollo' : 0,
-        'slip'  : 1,
+        'slip'  : 1
     };
 
     this.command_callback = function(callback) {
@@ -333,11 +333,11 @@ var epson_e_ar = function(interface, sequence) {
     // 6.4.1 Avanzar Papel (07 01)
     this._advance_paper = function(station, lines, callback) {
         self.common.command(
-                'advance_paper',
-                self.common.pack("<SW_W_N20>*", sequence++, 0x0701, station & 0x0003, lines),
-                '<SW_W__W_>*',
-                ['printerStatus', 'fiscalStatus', 'result'],
-                self.command_callback(callback));
+            'advance_paper',
+            self.common.pack("<SW_W_N20>*", sequence++, 0x0701, station & 0x0003, lines),
+            '<SW_W__W_>*',
+            ['printerStatus', 'fiscalStatus', 'result'],
+            self.command_callback(callback));
     }
 
     // 6.4.2 Cortar Papel (07 02)
@@ -460,6 +460,360 @@ var epson_e_ar = function(interface, sequence) {
                  ],
                 self.command_callback(callback));
     }
+
+
+
+
+
+// Comandos de Tique-Factura / Tique-Nota de Débito (0B)
+    // 6.7.1 Abrir (0B 01)
+    //
+    // partner_document_type =  D: DNI,
+    //                          L: CUIL,
+    //                          T: CUIT,
+    //                          C: Cedula de Identidad,
+    //                          P: Pasaporte,
+    //                          V: Libreta Civica,
+    //                          E: Libreta Enrolamiento.
+    // partner_document_number = I: Inscripto,
+    //                           N: No responsable,
+    //                           M: Monotributista,
+    //                           E: Exento,
+    //                           U: No categorizado,
+    //                           F: Consumidor final,
+    //                           T: Monotributista social,
+    //                           P: Monotributista trabajador independiente promovido.
+    //
+    this._open_fiscal_ticket = function(callback) {
+        self.common.command(
+            'open_fiscal_ticket',
+            self.common.pack("<SW_W>*", sequence++, 0x0A01),
+            '<SW_W__W_>*',
+            ['printerStatus', 'fiscalStatus', 'result'],
+            self.command_callback(callback));
+    }
+
+    // 6.7.2 Item (0B 02)
+    //
+    // Realiza la emisión de ítem de venta o la devolución de un ítem en forma total o parcial. Acumula los
+    // importes facturados en la memoria de trabajo y calcula los impuestos de acuerdo a la tasa de
+    // impuestos enviada. Permite la emisión de ítems de bonificación y su correspondiente anulación.
+    //
+    // INPUT
+    //
+    // item_action = sale_item: Item de venta.
+    //               cancel_sale_item: Anulación de ítem de venta.
+    //               return_can: Item de retorno de envases.
+    //               cancel_return_can: Anulación de ítem de retorno de envases.
+    //               return_item: Item de retorno.
+    //               cancel_return_item: Anulación de ítem de retorno.
+    //               discount_item: Item de descuento.
+    //               cancel_discount_item: Anulación de ítem de descuento.
+    // as_gross = Considerar parámetros como montos Brutos.
+    // send_subtotal = Envía campo Subtotal parcial del tique.
+    // check_item = Marcar ítem.
+    // collect_type = q: Contabilizar ítem de venta igual a la cantidad Q.
+    //                unit: Contabilizar ítem de venta como cantidad unitaria (bulto).
+    //                none: No contabilizar ítem de venta en cantidad de unidades.
+    // large_label = Imprime leyenda larga.
+    // first_line_label = Imprime leyenda en la primera línea de descripción.
+    // description = Descripción extra #1
+    // description_2 = Descripción extra #2
+    // description_3 = Descripción extra #3
+    // description_4 = Descripción extra #4
+    // item_description = Descripción del ítem
+    // quantity = Cantidad
+    // unit_price = Precio unitario
+    // vat_rate = Tasa de IVA
+    // fixed_taxes = Impuestos internos fijos
+    // taxes_rate = Coeficiente de impuestos internos porcentuales
+    //
+    // OUTPUT
+    //
+    // subtotal = Subtotal parcial del tique-factura o tique-nota de débito.
+    //
+    this._item_fiscal_ticket = function(
+        item_action,
+        as_gross,
+        send_subtotal,
+        check_item,
+        collect_type,
+        large_label,
+        first_line_label,
+        description,
+        description_2,
+        description_3,
+        description_4,
+        item_description,
+        quantity,
+        unit_price,
+        vat_rate,
+        fixed_taxes,
+        taxes_rate,
+        callback) {
+        var ext = (item_action == 'sale_item'            && 0x0000) |
+            (item_action == 'cancel_sale_item'     && 0x0001) |
+            (item_action == 'return_can'           && 0x0002) |
+            (item_action == 'cancel_return_can'    && 0x0003) |
+            (item_action == 'return_item'          && 0x0004) |
+            (item_action == 'cancel_return_item'   && 0x0005) |
+            (item_action == 'discount_item'        && 0x0006) |
+            (item_action == 'cancel_discount_item' && 0x0007) |
+            (as_gross                              && 0x0008) |
+            (send_subtotal                         && 0x0010) |
+            (check_item                            && 0x0020) |
+            (collect_type == 'q'                   && 0x0000) |
+            (collect_type == 'unit'                && 0x0040) |
+            (collect_type == 'none'                && 0x0080) |
+            (large_label                           && 0x1000) |
+            (first_line_label                      && 0x2000);
+        self.common.command(
+            'item_fiscal_ticket',
+            self.common.pack("<SW_W_R_R_R_R_R_N54_N74_N22_N74_N08>*", sequence++, 0x0A02, ext,
+                description,
+                description_2,
+                description_3,
+                description_4,
+                item_description,
+                quantity,
+                unit_price,
+                vat_rate,
+                fixed_taxes,
+                taxes_rate),
+            '<SW_W__W_N>*',
+            ['printerStatus', 'fiscalStatus', 'result',
+                'subtotal'],
+            callback);
+    }
+
+    // 6.7.3 Subtotal (0B 03)
+    //
+    // Retorna el subtotal facturado dentro del tique-factura o nota de débito fiscal.
+    //
+    // INPUT
+    //
+    // no_print = No imprime el subtotal.
+    // type = gross: Solo devuelve el campo de total bruto
+    //        net:   Solo devuelve el campo de total neto
+    //        both:  Devuelve ambos totales
+    //        none:  No devuelve nada
+    //
+    // OUTPUT
+    //
+    // gross = Subtotal parcial del tique-factura o nota de débito ( bruto )
+    // net = Subtotal parcial del tique-factura o nota de débito ( neto )
+    //
+    this._subtotal_fiscal_ticket = function(
+        print,
+        type,
+        callback) {
+        var ext = (no_print        && 0x0001) |
+            (type == 'gross' && 0x0004) |
+            (type == 'net'   && 0x0008) |
+            (type == 'both'  && 0x000A);
+        self.common.command(
+            'subtotal_fiscal_ticket',
+            self.common.pack("<SW_W>*", sequence++, 0x0A03, ext),
+            '<SW_W__N_N>*',
+            ['printerStatus', 'fiscalStatus', 'result',
+                'gross',
+                'net'],
+            callback);
+    }
+
+    // 6.7.4 Descuentos/Recargos (0B 04)
+    //
+    // Aplica un descuento o recargo global a los montos facturados en el tique-factura o nota de débito fiscal.
+    //
+    // INPUT
+    //
+    // type = discount: Descuento
+    //        charge: recargo
+    // description = Descripción
+    // amount = Monto de descuento/recargo
+    //
+    // OUTPUT
+    //
+    // subtotal = Subtotal parcial del tique-factura o nota de débito.
+    //
+    this._discount_charge_fiscal_ticket = function(
+        type,
+        description,
+        amount,
+        callback) {
+        var ext = (type == 'discount' && 0x0000) |
+            (type == 'charge'   && 0x0001);
+        self.common.command(
+            'discount_charge_fiscal_ticket',
+            self.common.pack("<SW_W_R_NA2>*", sequence++, 0x0A04, ext,
+                description,
+                amount),
+            '<SW_W__N>*',
+            ['printerStatus', 'fiscalStatus', 'result',
+                'subtotal'],
+            callback);
+    }
+
+    // 6.7.5 Pagos (0B 05)
+    //
+    // Aplica un pago al tique-factura o nota de débito fiscal en proceso de emisión.
+    //
+    // INPUT
+    //
+    // Aplica un pago al tique-factura o nota de débito fiscal en proceso de emisión.
+    // type =
+    //   null_pay = Anulación de pago.
+    //   no_include_cash_count = No incluye pago en arqueo de pagos.
+    //   card_pay = Pago con tarjeta.
+    // extra_description = Descripción extra del pago
+    // description = Descripción del pago
+    // amount = Monto de pago
+    //
+    // RETURN
+    //
+    // result = Monto restante por pagar
+    // change = Monto de vuelto
+    //
+    this._pay_fiscal_ticket = function(
+        null_pay,
+        include_in_arching,
+        card_pay,
+        extra_description,
+        description,
+        amount,
+        callback) {
+        var ext = (null_pay             && 0x0001) |
+            (include_in_arching   && 0x0002) |
+            (card_pay             && 0x0004);
+        self.common.command(
+            'pay_fiscal_ticket',
+            self.common.pack("<SW_W_R_R_NA2>*", sequence++, 0x0A05, ext,
+                extra_description,
+                description,
+                amount),
+            '<SW_W__W__N_N>*',
+            ['printerStatus', 'fiscalStatus', 'result',
+                'return',
+                'change'],
+            self.command_callback(callback));
+    }
+
+    /*this._pay_fiscal_ticket = function(
+        null_pay,
+        include_in_arching,
+        card_pay,
+        extra_description,
+        description,
+        amount,
+        callback) {
+        var ext = (null_pay             && 0x0001) |
+            (include_in_arching   && 0x0002) |
+            (card_pay             && 0x0004);
+        self.common.command(
+            'pay_fiscal_ticket',
+            self.common.pack("<SW_W_R_R_NA2>*", sequence++, 0x0A05, ext,
+                extra_description,
+                description,
+                amount),
+            '<SW_W__W__N_N>*',
+            ['printerStatus', 'fiscalStatus', 'result',
+                'return',
+                'change'],
+            callback);
+    }*/
+
+    // 6.7.6 Cerrar (0B 06)
+    //
+    // Realiza el cierre del tique-factura o nota de débito fiscal almacenando los datos de la transacción en la memoria de transacciones.
+    //
+    // INPUT
+    //
+    // cut_paper = Cortar papel.
+    // electronic_answer = Devuelve respuesta electrónica.
+    // print_return_attribute = Imprime “Su Vuelto” con atributos.
+    // current_account_automatic_pay = Utiliza pago automático como cuenta corriente.
+    // print_quantities = Imprimir Cantidad de unidades.
+    // tail_no = Número de línea de cola de reemplazo #1
+    // tail_text = Descripción de reemplazo #1
+    // tail_no_2 = Número de línea de cola de reemplazo #2
+    // tail_text_2 = Descripción de reemplazo #2
+    // tail_no_3 = Número de línea de cola de reemplazo #3
+    // tail_text_3 = Descripción de reemplazo #3
+    //
+    // RETURN
+    //
+    // printerStatus = estado de la impresora.
+    // fiscalStatus = estado fiscal del equipo.
+    // result = resultado del comando.
+    // document_number = Número del tique-factura o nota de débito fiscal
+    // document_type = Tipo de tique-factura o nota de débito (‘A’, ‘B’, ‘C’)
+    // document_amount = Monto total del tique-factura o nota de débito fiscal
+    // document_vat = Monto total de IVA del tique-factura o nota de débito fiscal
+    // document_return = Vuelto final
+    //
+    this._close_fiscal_ticket = function(
+        cut_paper,
+        electronic_answer,
+        print_return_attribute,
+        current_account_automatic_pay,
+        print_quantities,
+        tail_no,
+        tail_text,
+        tail_no_2,
+        tail_text_2,
+        tail_no_3,
+        tail_text_3,
+        callback) {
+        var ext = (cut_paper                             && 0x0001) |
+            (electronic_answer                     && 0x0002) |
+            (print_return_attribute                && 0x0004) |
+            (current_account_automatic_pay         && 0x0010) |
+            (print_quantities                      && 0x0100);
+        self.common.command(
+            'close_fiscal_ticket',
+            self.common.pack("<SW_W_N30_R_N30_R_N30_R>*", sequence++, 0x0A06, ext,
+                tail_no,
+                tail_text,
+                tail_no_2,
+                tail_text_2,
+                tail_no_3,
+                tail_text_3),
+            '<SW_W__W_N_L_N_N_N>*',
+            ['printerStatus', 'fiscalStatus', 'result',
+                'document_number',
+                'document_type',
+                'document_amount',
+                'document_vat',
+                'document_return'],
+            callback);
+    }
+
+    //
+    // 6.7.7 Cancelar (0B 07)
+    //
+    // Realiza la cancelación del tique-factura o nota de débito fiscal.
+    //
+    // INPUT
+    //
+    // RETURN
+    //
+    // document_number = Número del tique factura o nota de débito.
+    // document_type = Tipo de tique-factura o nota de débito (‘A’, ‘B’, ‘C’)
+    //
+    this._cancel_fiscal_ticket = function(callback) {
+        self.common.command(
+            'cancel_fiscal_ticket',
+            self.common.pack("<SW_W>*", sequence++, 0x0A07, 0x0000),
+            '<SW_W__N_L>*',
+            ['printerStatus', 'fiscalStatus', 'result',
+                'document_number',
+                'document_type'],
+            callback);
+    }
+
+
+
+
 
     //
     // Comandos de Tique Fiscal (0A)
@@ -857,6 +1211,7 @@ var epson_e_ar = function(interface, sequence) {
     // document_type = Tipo de tique-factura o nota de débito (‘A’, ‘B’, ‘C’)
     //
     this._cancel_ticket_factura = function(callback) {
+        console.log('tique cancelado');
         self.common.command(
                 'cancel_ticket_factura',
                 self.common.pack("<SW_W>*", sequence++, 0x0B07, 0x0000),
@@ -1303,7 +1658,7 @@ var epson_e_ar = function(interface, sequence) {
         'iibb_2': function(callback) { self.get_pos_info(7, function(response) { callback(response && response.value); }); },
         'iibb_3': function(callback) { self.get_pos_info(8, function(response) { callback(response && response.value); }); },
 
-        'activity_init': function(callback) { self.get_pos_info(9, function(response) { callback(response && response.value); }); },
+        'activity_init': function(callback) { self.get_pos_info(9, function(response) { callback(response && response.value); }); }
     };
 
     this.write_operation = {
@@ -1334,7 +1689,7 @@ var epson_e_ar = function(interface, sequence) {
         'iibb_2': function(value_, callback) { self.set_pos_info(7, value_, function(response) { callback(response); }); },
         'iibb_3': function(value_, callback) { self.set_pos_info(8, value_, function(response) { callback(response); }); },
 
-        'activity_init': function(value_, callback) { self.set_pos_info(9, value_, function(response) { callback(response); }); },
+        'activity_init': function(value_, callback) { self.set_pos_info(9, value_, function(response) { callback(response); }); }
      };
 
     //
@@ -1535,11 +1890,197 @@ var epson_e_ar = function(interface, sequence) {
         self._x_report(1,1,1,callback);
     }
 
-    // API: Make ticket factura.
-    this.make_ticket_factura  = function(options, ticket, callback) {
+    // API: Make ticket.
+    this.make_fiscal_ticket  = function(ticket, callback) {
         var self = this;
 
+        var callback_cancel_fiscal_ticket = function(ret) {
+            ret = ret || {};
+            ret.error = 'ticket canceled'
+            callback(ret);
+        }
+
+        self._open_fiscal_ticket(
+
+            function(res) {
+                if (res.result != 0) {
+                    console.error(res.strResult);
+                    callback({'error': 'Cant open ticket:' + res.strResult, res: res, test: ticket});
+                } else
+                    async.eachSeries(ticket.lines,
+                        function(line, _callback_){
+                            self._item_fiscal_ticket(
+                                line.item_action || "sale_item",
+                                line.as_gross || false,
+                                line.send_subtotal || false,
+                                line.check_item || false,
+                                line.collect_type || 'q',
+                                line.large_label || "",
+                                line.first_line_label || "",
+                                line.description || "",
+                                line.description_2 || "",
+                                line.description_3 || "",
+                                line.description_4 || "",
+                                line.item_description,
+                                line.quantity || 1,
+                                line.unit_price,
+                                line.vat_rate || 0,
+                                line.fixed_taxes || 0,
+                                line.taxes_rate || 0,
+                                function(res) {
+                                    if (res.result != 0) {
+                                        console.error(res.strResult);
+                                        callback('error ITEM');
+                                        self._cancel_fiscal_ticket(callback);
+                                    } else {
+                                        _callback_();
+                                    }
+                                }
+                            );
+                        }, function() {
+                            async.eachSeries(ticket.discounts || [],
+                                function(discount, _callback_){
+                                    self._discount_charge_fiscal_ticket(
+                                        discount.type,
+                                        discount.description,
+                                        discount.amount,
+                                        function(res) {
+                                            if (res.result != 0) {
+                                                console.error(res.strResult);
+                                                callback('error DESCUENTO');
+                                                self._cancel_fiscal_ticket(callback_cancel_fiscal_ticket);
+                                            } else {
+                                                _callback_();
+                                            }
+                                        }
+                                    );
+                                }, function() {
+                                    async.eachSeries(ticket.payments || [],
+                                        function(pay, _callback_){
+                                            self._pay_fiscal_ticket(
+                                                pay.null_pay,
+                                                pay.include_in_arching,
+                                                pay.card_pay,
+                                                pay.extra_description,
+                                                pay.description,
+                                                pay.amount,
+                                                function(res) {
+                                                    if (res.result != 0) {
+                                                        console.error(res.strResult);
+                                                        callback('error PAGO');
+                                                        callback(res.strResult, res);
+                                                        self._cancel_fiscal_ticket(callback_cancel_fiscal_ticket);
+                                                    } else {
+                                                        _callback_();
+                                                    }
+                                                }
+                                            );
+                                        }, function() {
+                                            self._close_fiscal_ticket(
+                                                options.cut_paper || true,
+                                                options.electronic_answer || true,
+                                                options.print_return_attribute || false,
+                                                options.current_account_automatic_pay || false,
+                                                options.print_quantities || false,
+                                                options.tail_no || 0,
+                                                options.tail_text || "",
+                                                options.tail_no_2 || 0,
+                                                options.tail_text_2 || "",
+                                                options.tail_no_3 || 0,
+                                                options.tail_text_3 || "",
+                                                function(res) {
+                                                    if (res.result != 0) {
+                                                        console.error(res.strResult);
+                                                        callback('error close');
+                                                        self._cancel_fiscal_ticket(callback_cancel_fiscal_ticket);
+                                                    } else {
+                                                        callback(res);
+                                                    }
+                                                });
+                                        });
+                                        });
+                                        });
+                                        });
+
+        /*callback('11');
+         return true;*/
+    };
+                        /*}, function() {
+                            async.eachSeries(ticket.discounts || [],
+                                function(discount, _callback_){
+                                    self._discount_charge_fiscal_ticket(
+                                        discount.type,
+                                        discount.description,
+                                        discount.amount,
+                                        function(res) {
+                                            if (res.result != 0) {
+                                                console.error(res.strResult);
+                                                self._cancel_fiscal_ticket(callback_cancel_fiscal_ticket);
+                                            } else {
+                                                _callback_();
+                                            }
+                                        }
+                                    );
+                                });
+                        }, function() {
+                            async.eachSeries(ticket.payments,
+                                function(pay, _callback_){
+                                    self._pay_fiscal_ticket(
+                                        pay.type,
+                                        pay.extra_description,
+                                        pay.description,
+                                        pay.amount,
+                                        function(res) {
+                                            if (res.result != 0) {
+                                                console.error(res.strResult);
+                                                self._cancel_fiscal_ticket(callback);
+                                            } else {
+                                                _callback_();
+                                            }
+                                        }
+                                    );
+                                }, function() {
+                                    self._close_fiscal_ticket(
+                                        options.cut_paper || true,
+                                        options.electronic_answer || false,
+                                        options.print_return_attribute || false,
+                                        options.current_account_automatic_pay || false,
+                                        options.print_quantities || false,
+                                        options.tail_no || 0,
+                                        options.tail_text || "",
+                                        options.tail_no_2 || 0,
+                                        options.tail_text_2 || "",
+                                        options.tail_no_3 || 0,
+                                        options.tail_text_3 || "",
+                                        function(res) {
+                                            if (res.result != 0) {
+                                                console.error(res.strResult);
+                                                self._cancel_fiscal_ticket(callback);
+                                            } else {
+                                                callback(res);
+                                            }
+                                        });
+                                });
+                        });
+            });
+
+    };
+*/
+    // API: Cancel ticket.
+    this.cancel_fiscal_ticket  = function(callback) {
+        var self = this;
+        self._cancel_fiscal_ticket(1,1,1,callback);
+    };
+
+    // API: Make ticket factura.
+    this.make_ticket_factura  = function(options, ticket, callback) {
+        console.log(ticket);
+        var self = this;
+        
         var callback_cancel_ticket_factura = function(ret) {
+            /*callback('1');
+            return true;*/
+
             ret = ret || {};
             ret.error = 'ticket canceled'
             callback(ret);
@@ -1565,8 +2106,11 @@ var epson_e_ar = function(interface, sequence) {
 			    ticket.turist_check || "",
 	    function(res) {
         if (res.result != 0) {
+           /* callback('2');
+            return true;*/
+
             console.error(res.strResult);
-            callback({'error': 'Cant open ticket:' + res.strResult});
+            callback({'error': 'Cant open ticket:' + res.strResult, res: res, test: ticket.partner.document_type});
         } else
         async.eachSeries(ticket.lines || [],
             function(line, _callback_){
@@ -1590,9 +2134,15 @@ var epson_e_ar = function(interface, sequence) {
                     line.taxes_rate || 0,
                     function(res) {
                         if (res.result != 0) {
+                            /*callback('3');
+                            return true;*/
+
                             console.error(res.strResult);
                             self._cancel_ticket_factura(callback_cancel_ticket_factura);
                         } else {
+                           /*callback('4');
+                            return true;*/
+
                             _callback_();
                         }
                     }
@@ -1606,9 +2156,15 @@ var epson_e_ar = function(interface, sequence) {
                     discount.amount,
                     function(res) {
                         if (res.result != 0) {
+                           /* callback('5');
+                            return true;*/
+
                             console.error(res.strResult);
                             self._cancel_ticket_factura(callback_cancel_ticket_factura);
                         } else {
+                            /*callback('6');
+                            return true;*/
+
                             _callback_();
                         }
                     }
@@ -1625,9 +2181,15 @@ var epson_e_ar = function(interface, sequence) {
                     pay.amount,
                     function(res) {
                         if (res.result != 0) {
+                           /* callback('7');
+                            return true;*/
+
                             console.error(res.strResult);
                             self._cancel_ticket_factura(callback_cancel_ticket_factura);
                         } else {
+                            /*callback('8');
+                            return true;*/
+
                             _callback_();
                         }
                     }
@@ -1647,9 +2209,15 @@ var epson_e_ar = function(interface, sequence) {
                     options.tail_text_3 || "",
             function(res) {
             if (res.result != 0) {
+                /*callback('9');
+                return true;*/
+
                 console.error(res.strResult);
                 self._cancel_ticket_factura(callback_cancel_ticket_factura);
             } else {
+                /*callback('10');
+                return true;*/
+
                 callback(res);
             }
             });
@@ -1657,6 +2225,9 @@ var epson_e_ar = function(interface, sequence) {
 	    });
 	    });
 	    });
+
+        /*callback('11');
+        return true;*/
     };
 
     // API: Cancel ticket factura.

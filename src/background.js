@@ -1,6 +1,38 @@
 //
 // Backgroup process application.
 //
+chrome.runtime.onMessageExternal.addListener(
+    function(request, sender, sendResponse) {
+        ticket_json = JSON.parse(request.ticketJson);
+        printZ = JSON.parse(request.printZ);
+        getAlive = JSON.parse(request.getAlive);
+
+        // Add printers
+        console.debug('buscando impresora');
+        for (p in window.session.printers) {
+            //var getPrinter = function(e) { return window.session.printers[e.target.parentNode.parentNode.parentNode.parentNode.getAttribute('printer_id')]; };
+            var options = [false, false, false, false];
+            if(p.indexOf("TM-U220") > -1){
+                console.log('impresora encontrada');
+                
+                if(getAlive == true){
+                    console.log('get conection alive');
+                    //window.session.printers[p].close_fiscal_journal(function(res) { console.log("Executed Close day."); console.log(res); });
+                    return true;
+                }
+
+                if(printZ == true){
+                    console.log('infome z');
+                    window.session.printers[p].close_fiscal_journal(function(res) { console.log("Executed Close day."); console.log(res); });
+                    return true;
+                }
+
+                console.log('imprimir ticket');
+                window.session.printers[p].make_ticket_factura(options, ticket_json, function(res){ console.log(res) });
+            }
+        }
+    });
+
 
 var session = null;
 var pooling_time = 300;
@@ -19,17 +51,7 @@ function poolingPrinter() {
 function open_status(sess) {
     if (sess) {
         if (chrome.app.window.get('status') == null) {
-            chrome.app.window.create('view/status.html', {
-                'id': 'status',
-                'bounds': {
-                    'width': 700,
-                    'height': 640
-                },
-                'minWidth': 700,
-                'minHeight': 640
-            }, function(sWindow) {
-              sWindow.contentWindow.session = sess;
-            });
+            //chrome.app.window.create();
         };
     } else {
         setTimeout(function() { open_status(sess); }, 1000);
